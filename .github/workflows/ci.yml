@@ -1,0 +1,23 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: movies, POSTGRES_PASSWORD: movies, POSTGRES_DB: movies }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U movies" --health-interval 2s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.23" }
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -tags integration -count=1 ./...
+      - run: docker build -t movie-reservation .
